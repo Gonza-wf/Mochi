@@ -358,6 +358,21 @@
       window.Personality.init();
     }
 
+    // Intelligence (advanced AI brain)
+    if (window.Intelligence) {
+      window.Intelligence.init();
+    }
+
+    // Interaction (bidirectional creature-player interaction)
+    if (window.Interaction) {
+      window.Interaction.init();
+    }
+
+    // Toy physics system
+    if (window.ToySystem) {
+      window.ToySystem.init();
+    }
+
     // Menu + Items
     if (window.Menu) {
       window.Menu.init();
@@ -451,11 +466,20 @@
     // Personality (very slow adaptation)
     if (window.Personality)   window.Personality.update(dt);
 
+    // Intelligence (attention, compound behavior, body language, communication)
+    if (window.Intelligence)  window.Intelligence.update(dt);
+
+    // Interaction (creature requests, mini-games, gestures, micro-moments)
+    if (window.Interaction)   window.Interaction.update(dt);
+
     // Particles (reads mood for emotional particles)
     if (window.ParticleSystem) window.ParticleSystem.update(dt);
 
     // Audio (emotional auto-sounds)
     if (window.AudioSystem)   window.AudioSystem.update(dt);
+
+    // Toy physics (collisions, creature play, drag)
+    if (window.ToySystem)     window.ToySystem.update(dt);
 
     // Menu + item interactions
     if (window.Menu)          window.Menu.update(dt);
@@ -511,7 +535,10 @@
     // Layer 2: Ambient + emotional particles
     if (window.ParticleSystem) window.ParticleSystem.render(ctx);
 
-    // Layer 3: The creature (shadow → glow → body → hairs)
+    // Layer 3: World toys (physics-based, draggable)
+    if (window.ToySystem)      window.ToySystem.render(ctx);
+
+    // Layer 4: The creature (shadow → glow → body → hairs)
     if (window.Creature)       window.Creature.render(ctx);
 
     // Layer 4: Menu panel + dragged items + flying items
@@ -571,6 +598,19 @@
         var saveSize = window.Storage.getSaveSize();
         if (age > 0) parts.push('d' + age);
         if (saveSize > 0) parts.push(Math.round(saveSize / 1024) + 'kb');
+      }
+
+      // Interaction state
+      if (window.Interaction) {
+        if (window.Interaction.isRequesting) {
+          parts.push('REQ:' + window.Interaction.requestType);
+        }
+        if (window.Interaction.isGameActive) {
+          parts.push('GAME:' + window.Interaction.gameType);
+        }
+        if (window.Interaction.isMomentActive) {
+          parts.push('MOM:' + window.Interaction.momentType);
+        }
       }
 
       // Personality (most prominent trait deviation from 50)

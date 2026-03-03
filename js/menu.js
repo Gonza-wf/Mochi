@@ -229,6 +229,14 @@
         _returning = false;
         _hoverItem = null;
         _hoverTimer = 0;
+
+        // ── Auto-close menu when dragging FOOD ──
+        // Close visually but keep drag state alive
+        if (_dragItem && _dragItem.category === 'food') {
+          _isOpen = false;
+          updateButtonVisibility();
+          if (window.AudioSystem) window.AudioSystem.play('menu_close', { volume: 0.15 });
+        }
       }
     }
   }

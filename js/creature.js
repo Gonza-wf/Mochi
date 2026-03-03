@@ -41,6 +41,11 @@
   var soundPopPhase = 0;      // animation phase
   var soundPopActive = false;
 
+  // ─── Finger reaction (emotion-based) ───
+  var _foodChaseTimer = 0;
+  var _foodChaseAngered = false;
+  var _foodChaseCooldown = 0;
+
   // ─── Eye state (particle eyes) ───
   var eyes = {
     lx: -0.25, ly: -0.15, rx: 0.25, ry: -0.15,
@@ -211,9 +216,29 @@
 
     ctx.save();
     ctx.translate(P.x, P.y);
-    // Apply growth scale + sound pop to body + hairs together
+
+    // Movement micro-offsets (organic jitter)
+    var M = window.Movement;
+    var mvOX = M ? M.microOffsetX : 0;
+    var mvOY = M ? M.microOffsetY : 0;
+    var mvRot = M ? M.rotation : 0;
+    var mvCX = M ? M.crouchScaleX : 1;
+    var mvCY = M ? M.crouchScaleY : 1;
+
+    // Body language modifiers from Intelligence
+    var bm = window.Intelligence ? window.Intelligence.getBodyModifiers() : null;
+    var bmSX = bm ? bm.scaleX : 1;
+    var bmSY = bm ? bm.scaleY : 1;
+    var bmOX = bm ? bm.offsetX : 0;
+    var bmOY = bm ? bm.offsetY : 0;
+    var bmRot = bm ? bm.rotation : 0;
+
+    ctx.translate(bmOX + mvOX, bmOY + mvOY);
+    ctx.rotate(bmRot + mvRot);
+
+    // Apply growth scale + sound pop + body language + movement crouch
     var popMul = 1 + soundPopScale;
-    ctx.scale(P.scaleX * growthScale * popMul, P.scaleY * growthScale * popMul);
+    ctx.scale(P.scaleX * growthScale * popMul * bmSX * mvCX, P.scaleY * growthScale * popMul * bmSY * mvCY);
 
     if (isPurring) {
       ctx.translate(
@@ -294,8 +319,16 @@
     var r = P.baseRadius * P.breathScale;
     ctx.save();
     ctx.translate(P.x, P.y);
+    var ME = window.Movement;
+    var mvEOX = ME ? ME.microOffsetX : 0, mvEOY = ME ? ME.microOffsetY : 0;
+    var mvERot = ME ? ME.rotation : 0;
+    var mvECX = ME ? ME.crouchScaleX : 1, mvECY = ME ? ME.crouchScaleY : 1;
+    var bmE = window.Intelligence ? window.Intelligence.getBodyModifiers() : null;
+    if (bmE) { ctx.translate(bmE.offsetX + mvEOX, bmE.offsetY + mvEOY); ctx.rotate((bmE.rotation || 0) + mvERot); }
+    else { ctx.translate(mvEOX, mvEOY); ctx.rotate(mvERot); }
     var popMulE = 1 + soundPopScale;
-    ctx.scale(P.scaleX * growthScale * popMulE, P.scaleY * growthScale * popMulE);
+    var bmEsx = bmE ? bmE.scaleX : 1, bmEsy = bmE ? bmE.scaleY : 1;
+    ctx.scale(P.scaleX * growthScale * popMulE * bmEsx * mvECX, P.scaleY * growthScale * popMulE * bmEsy * mvECY);
 
     var eR = r * 0.07 * eyes.pupil * openness;
     var gR = eR * 3;
@@ -332,9 +365,17 @@
 
     ctx.save();
     ctx.translate(P.x, P.y);
-    // Apply growth scale + pop to hairs
+    var MH = window.Movement;
+    var mvHOX = MH ? MH.microOffsetX : 0, mvHOY = MH ? MH.microOffsetY : 0;
+    var mvHRot = MH ? MH.rotation : 0;
+    var mvHCX = MH ? MH.crouchScaleX : 1, mvHCY = MH ? MH.crouchScaleY : 1;
+    var bmH = window.Intelligence ? window.Intelligence.getBodyModifiers() : null;
+    if (bmH) { ctx.translate(bmH.offsetX + mvHOX, bmH.offsetY + mvHOY); ctx.rotate((bmH.rotation || 0) + mvHRot); }
+    else { ctx.translate(mvHOX, mvHOY); ctx.rotate(mvHRot); }
+    // Apply growth scale + pop + body language + movement crouch to hairs
     var popMulH = 1 + soundPopScale;
-    ctx.scale(growthScale * popMulH, growthScale * popMulH);
+    var bmHsx = bmH ? bmH.scaleX : 1, bmHsy = bmH ? bmH.scaleY : 1;
+    ctx.scale(growthScale * popMulH * bmHsx * mvHCX, growthScale * popMulH * bmHsy * mvHCY);
     ctx.lineCap = 'round';
 
     for (var s = 0; s < HAIR_MAX_SEGS; s++) {
@@ -389,6 +430,9 @@
       if (window.CreatureAI) {
         window.CreatureAI.init();
       }
+      if (window.Movement) {
+        window.Movement.init();
+      }
 
       color.h = 270; color.s = 60; color.l = 65;
       tColor.h = 270; tColor.s = 60; tColor.l = 65;
@@ -442,6 +486,116 @@
       // ── Eyes ──
       updateEyes(dt);
 
+      // ── Intelligence integration ──
+      if (window.Intelligence) {
+        var intel = window.Intelligence.getAttention();
+
+        // Eyes track attention target
+        if (intel && intel.type !== 'nothing' && !isDragging) {
+          var adx = intel.x - P.x;
+          var ady = intel.y - P.y;
+          var aDist = Math.sqrt(adx * adx + ady * ady) || 1;
+          eyes.lookX = (adx / aDist) * 0.4;
+          eyes.lookY = (ady / aDist) * 0.3;
+        }
+
+        // Apply eye microexpressions
+        var eyeState = window.Intelligence.getEyeState();
+        if (eyeState) {
+          eyes.tPupil *= eyeState.pupilScale;
+          // Darting eyes (fear)
+          if (eyeState.dartSpeed > 0) {
+            eyes.clx += (Math.random() - 0.5) * eyeState.dartSpeed * dt;
+            eyes.cly += (Math.random() - 0.5) * eyeState.dartSpeed * dt * 0.6;
+          }
+          // Droop adjusts alpha
+          if (eyeState.droop > 0) {
+            eyes.alpha = Math.max(0.15, 0.85 - eyeState.droop * 0.7);
+          } else {
+            eyes.alpha = 0.85;
+          }
+          // Wider eyes → slightly larger pupils
+          if (eyeState.widen > 0) {
+            eyes.tPupil *= (1 + eyeState.widen * 0.3);
+          }
+          // Blink rate modification
+          if (eyeState.blinkRate && eyeState.blinkRate !== 1) {
+            eyes.nextBlink = (2.5 + Math.random() * 6) / eyeState.blinkRate;
+          }
+        }
+
+        // Toy play — creature moves toward toys autonomously
+        var toyCmd = window.Intelligence.isToyPlaying() ? (function() {
+          // Get fresh command from update result
+          var cx = P.x, cy = P.y;
+          var toys = (window.Items && window.Items._worldToys) || [];
+          var activeToys = toys.filter(function(t) { return t.alpha > 0.5; });
+          if (activeToys.length === 0) return null;
+
+          var fav = window.Intelligence.getFavoriteToy();
+          var target = null;
+          if (fav) target = activeToys.find(function(t) { return t.id === fav; });
+          if (!target) target = activeToys[0];
+          if (!target) return null;
+
+          // Look at toy
+          var tdx = target.x - cx, tdy = target.y - cy;
+          var tDist = Math.sqrt(tdx * tdx + tdy * tdy) || 1;
+          eyes.lookX = (tdx / tDist) * 0.45;
+          eyes.lookY = (tdy / tDist) * 0.35;
+
+          // Move toward toy
+          if (tDist > P.baseRadius * growthScale * 1.5) {
+            P.applyForce((tdx / tDist) * 18 * dt * 60, (tdy / tDist) * 14 * dt * 60);
+          }
+          return true;
+        })() : null;
+
+        // Compound behavior — override AI target
+        var compound = window.Intelligence.getCompoundBehavior();
+        if (compound && !isDragging && !touchOnCreature && !toyCmd) {
+          var G = window.GAME;
+          var cTarget = null;
+
+          switch (compound.moveTarget) {
+            case 'menu_zone':
+              cTarget = { x: G.centerX, y: G.height * 0.85 }; break;
+            case 'finger_near':
+              if (window.InputSystem && window.InputSystem.isDown()) {
+                var fp = window.InputSystem.getPosition();
+                cTarget = { x: fp.x, y: fp.y };
+              }
+              break;
+            case 'center':
+              cTarget = { x: G.centerX, y: G.centerY }; break;
+            case 'edge':
+              var edgeX = P.x < G.centerX ? G.width * 0.08 : G.width * 0.92;
+              cTarget = { x: edgeX, y: G.height * 0.6 }; break;
+            case 'edge_facing_finger':
+              var efX = P.x < G.centerX ? G.width * 0.1 : G.width * 0.9;
+              cTarget = { x: efX, y: G.height * 0.55 }; break;
+            case 'nearest_toy':
+              var wToys = (window.Items && window.Items._worldToys) || [];
+              var nearest = null, nearDist = Infinity;
+              wToys.forEach(function(t) {
+                if (t.alpha < 0.3) return;
+                var d = Math.hypot(t.x - P.x, t.y - P.y);
+                if (d < nearDist) { nearDist = d; nearest = t; }
+              });
+              if (nearest) cTarget = { x: nearest.x, y: nearest.y };
+              break;
+          }
+
+          if (cTarget) {
+            var cdx = cTarget.x - P.x;
+            var cdy = cTarget.y - P.y;
+            var cDist = Math.sqrt(cdx * cdx + cdy * cdy) || 1;
+            var spd = compound.speed || 1;
+            P.applyForce((cdx / cDist) * 12 * spd * dt * 60, (cdy / cDist) * 10 * spd * dt * 60);
+          }
+        }
+      }
+
       // ── Accelerometer ──
       if (accelEnabled && window.CreaturePhysics) {
         var P = window.CreaturePhysics;
@@ -467,7 +621,126 @@
         }
       }
 
+      // ════════════════════════════════════════════
+      // FINGER REACTION — emotion-based following
+      // ════════════════════════════════════════════
+      var _isFoodDrag = window.Menu && window.Menu.isDraggingItem
+        && window.Menu.selectedItem && window.Menu.selectedItem.category === 'food';
+
+      if (!_isFoodDrag && !isDragging && !touchOnCreature && !isBeingHeld) {
+        var _menuBusy = window.Menu && (window.Menu.isOpen || window.Menu.isDraggingItem);
+        if (!_menuBusy && window.InputSystem && window.InputSystem.isDown()) {
+          var fPos = window.InputSystem.getPosition();
+          var fdx = fPos.x - P.x;
+          var fdy = fPos.y - P.y;
+          var fDist = Math.sqrt(fdx * fdx + fdy * fdy);
+
+          if (fDist > 20 && fDist < window.GAME.width * 0.8) {
+            var fnx = fdx / fDist;
+            var fny = fdy / fDist;
+            var fStr = Math.min(1, fDist / (window.GAME.width * 0.4));
+
+            var mood = window.EmotionSystem ? window.EmotionSystem.getDominant() : 'neutral';
+            var force = 0;
+
+            switch (mood) {
+              case 'love':
+                force = 28 * fStr; break;
+              case 'happiness': case 'happy':
+                force = 22 * fStr; break;
+              case 'curiosity':
+                force = 16 * fStr; break;
+              case 'playful': case 'excited':
+                force = 38 * fStr; break;
+              case 'fear': case 'scared':
+                force = -45 * fStr; break;
+              case 'anger':
+                force = -35 * fStr; break;
+              case 'sadness': case 'sad':
+                force = 8 * fStr; break;
+              case 'sleepy':
+                force = 3 * fStr; break;
+              default:
+                force = 12 * fStr; break;
+            }
+
+            // Don't overlap finger when approaching
+            var minR = P.baseRadius * growthScale * 0.6;
+            if (force > 0 && fDist < minR) force = 0;
+
+            P.applyForce(fnx * force * dt * 60, fny * force * dt * 60);
+          }
+        }
+      }
+
+      // ════════════════════════════════════════════
+      // FOOD CHASING — creature follows dragged food
+      // ════════════════════════════════════════════
+      if (_isFoodDrag) {
+        var foodPos = window.Menu.dragPosition;
+        var fx = foodPos.x - P.x;
+        var fy = foodPos.y - P.y;
+        var foDist = Math.sqrt(fx * fx + fy * fy);
+
+        _foodChaseTimer += dt;
+
+        if (!_foodChaseAngered && _foodChaseTimer < 15) {
+          // Chase the food eagerly
+          if (foDist > P.baseRadius * growthScale * 1.2) {
+            var hungerFactor = window.NeedsSystem
+              ? (100 - window.NeedsSystem.get('hunger')) / 100 : 0.5;
+            var chaseF = 22 + hungerFactor * 25;
+            var cnx = fx / (foDist || 1);
+            var cny = fy / (foDist || 1);
+            P.applyForce(cnx * chaseF * dt * 60, cny * chaseF * dt * 60);
+          }
+
+          // Eyes track the food
+          eyes.lookX = (fx / (foDist || 1)) * 0.5;
+          eyes.lookY = (fy / (foDist || 1)) * 0.4;
+
+        } else if (!_foodChaseAngered && _foodChaseTimer >= 15) {
+          // 15 seconds — ANGRY!
+          _foodChaseAngered = true;
+          _foodChaseCooldown = 5;
+
+          if (window.EmotionSystem) {
+            window.EmotionSystem.modify('anger', 20);
+            window.EmotionSystem.modify('happiness', -10);
+          }
+          if (window.AudioSystem) {
+            window.AudioSystem.play('growl', { volume: 0.35 });
+          }
+          if (window.Creature) {
+            window.Creature.triggerSoundGlow(0.5);
+          }
+          // Push away from food
+          if (foDist > 1) {
+            P.applyForce(-(fx / foDist) * 80, -(fy / foDist) * 60);
+          }
+        } else if (_foodChaseAngered) {
+          // Stay away while angry
+          if (foDist < P.baseRadius * 3 && foDist > 1) {
+            P.applyForce(-(fx / foDist) * 15 * dt * 60, -(fy / foDist) * 12 * dt * 60);
+          }
+        }
+      } else {
+        // Reset when food drag ends
+        if (_foodChaseTimer > 0) {
+          _foodChaseTimer = 0;
+        }
+        if (_foodChaseCooldown > 0) {
+          _foodChaseCooldown -= dt;
+          if (_foodChaseCooldown <= 0) {
+            _foodChaseAngered = false;
+          }
+        }
+      }
+
       if (window.CreatureAI) window.CreatureAI.update(dt);
+
+      // Movement system — curves, rotation, micro-movements, weight, trail
+      if (window.Movement) window.Movement.update(dt);
 
       P.updateBody(dt);
       P.updateHairs(dt);
@@ -481,6 +754,8 @@
 
     render: function(ctx) {
       if (!window.CreaturePhysics || !window.CreaturePhysics.hairs) return;
+      // Trail renders behind creature
+      if (window.Movement) window.Movement.render(ctx);
       renderShadow(ctx);
       renderGlow(ctx);
       renderBody(ctx);
