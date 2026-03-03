@@ -494,7 +494,7 @@
         window.addEventListener('devicemotion', function(e) {
           if (!accelEnabled) return;
           var a = e.accelerationIncludingGravity;
-          if (a) { accelX = (a.x || 0) * 0.6; accelY = -(a.y || 0) * 0.6; }
+          if (a) { accelX = -(a.x || 0) * 0.6; accelY = (a.y || 0) * 0.6; }
         });
         if (typeof DeviceMotionEvent.requestPermission === 'function') {
           DeviceMotionEvent.requestPermission().catch(function() {});

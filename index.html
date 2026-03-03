@@ -57,6 +57,9 @@
       height: 100dvh;
       touch-action: none;
       background-color: var(--bg-primary);
+      will-change: contents;
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
     }
 
     /* ─── UI Layer ─── */
@@ -519,20 +522,6 @@
       100% { transform: scale(1); }
     }
 
-    /* ─── Color dots ─── */
-    .color-dot {
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: border-color 0.2s, transform 0.15s;
-    }
-    .color-dot.active {
-      border-color: #fff;
-      transform: scale(1.2);
-    }
-    .color-dot:active { transform: scale(0.9); }
-
     /* ─── Achievement items ─── */
     .achv {
       width: 36px; height: 36px;
@@ -547,19 +536,6 @@
     }
     .achv.locked { filter: grayscale(1) brightness(0.3); }
     .achv.unlocked { background: rgba(224,170,255,0.1); }
-
-    /* ─── Diary entries ─── */
-    .diary-entry {
-      font-size: 0.7rem;
-      color: var(--text-dim);
-      padding: 0.25rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.03);
-    }
-    .diary-entry .de-time {
-      font-size: 0.6rem;
-      opacity: 0.5;
-      margin-left: 0.5rem;
-    }
 
     /* ─── Landscape Warning ─── */
     @media screen and (orientation: landscape) and (max-height: 500px) {
@@ -649,26 +625,9 @@
           <button id="accel-toggle" class="settings-toggle interactive off">OFF</button>
         </div>
         <div class="settings-divider"></div>
-        <div class="settings-item">
-          <span>🎨 Color base</span>
-          <div style="display:flex;gap:6px">
-            <button class="color-dot interactive" data-hue="270" style="background:hsl(270,60%,65%)"></button>
-            <button class="color-dot interactive" data-hue="330" style="background:hsl(330,65%,65%)"></button>
-            <button class="color-dot interactive" data-hue="200" style="background:hsl(200,60%,60%)"></button>
-            <button class="color-dot interactive" data-hue="130" style="background:hsl(130,55%,60%)"></button>
-            <button class="color-dot interactive" data-hue="45" style="background:hsl(45,70%,65%)"></button>
-            <button class="color-dot interactive" data-hue="0" style="background:hsl(0,65%,60%)"></button>
-          </div>
-        </div>
-        <div class="settings-divider"></div>
         <div id="achievements-section">
           <span style="font-size:0.85rem;color:var(--accent);letter-spacing:0.08em">Logros</span>
           <div id="achievements-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:0.5rem"></div>
-        </div>
-        <div class="settings-divider"></div>
-        <div id="diary-section" style="max-height:100px;overflow-y:auto">
-          <span style="font-size:0.85rem;color:var(--accent);letter-spacing:0.08em">Diario</span>
-          <div id="diary-entries" style="margin-top:0.4rem"></div>
         </div>
         <div class="settings-divider"></div>
         <button id="reset-btn" class="interactive">🗑️ Iniciar desde cero</button>
@@ -774,23 +733,6 @@
       }
     }
 
-    function renderDiary() {
-      var container = document.getElementById('diary-entries');
-      if (!container || !window.Personality) return;
-      var entries = window.Personality.getDiary(8);
-      container.innerHTML = '';
-      if (entries.length === 0) {
-        container.innerHTML = '<div class="diary-entry" style="opacity:0.3">Sin entradas aún...</div>';
-        return;
-      }
-      for (var i = entries.length - 1; i >= 0; i--) {
-        var div = document.createElement('div');
-        div.className = 'diary-entry';
-        div.innerHTML = entries[i].text + '<span class="de-time">' + entries[i].time + '</span>';
-        container.appendChild(div);
-      }
-    }
-
     // Check achievements every 10 seconds
     loadAchievements();
     setInterval(function() {
@@ -799,21 +741,6 @@
 
     // ═══ SETTINGS BINDINGS ═══
     function initSettingsExtras() {
-      // Color dots
-      var dots = document.querySelectorAll('.color-dot');
-      dots.forEach(function(dot) {
-        dot.addEventListener('click', function() {
-          dots.forEach(function(d) { d.classList.remove('active'); });
-          dot.classList.add('active');
-          var hue = parseInt(dot.dataset.hue);
-          if (window.Creature) window.Creature.setColor(hue, 60, 65);
-          if (window.EmotionSystem) {
-            // Temporarily shift the neutral color
-            window._customBaseHue = hue;
-          }
-        });
-      });
-
       // Haptic toggle
       var hapticBtn = document.getElementById('haptic-toggle');
       if (hapticBtn) {
@@ -845,13 +772,12 @@
         });
       }
 
-      // Render achievements and diary when settings open
+      // Render achievements when settings open
       var menuBtn = document.getElementById('menu-btn');
       if (menuBtn) {
         menuBtn.addEventListener('click', function() {
           setTimeout(function() {
             renderAchievementsGrid();
-            renderDiary();
           }, 100);
         });
       }

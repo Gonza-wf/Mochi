@@ -46,8 +46,8 @@
     /** Datos de la criatura (nombre, etc) */
     creature: null,
 
-    /** Factor de escala para pantallas HD (máx 3x) */
-    pixelRatio: Math.min(window.devicePixelRatio || 1, 3),
+    /** Factor de escala para pantallas HD (máx 2x para estabilidad GPU móvil) */
+    pixelRatio: Math.min(Math.round(window.devicePixelRatio || 1), 2),
 
     /** FPS tracking */
     fps: 0,
@@ -83,8 +83,7 @@
 
     G.canvas = document.getElementById('gameCanvas');
     G.ctx = G.canvas.getContext('2d', {
-      alpha: false,
-      desynchronized: true
+      alpha: false
     });
 
     resizeCanvas();
@@ -107,14 +106,14 @@
     var G = window.GAME;
     var dpr = G.pixelRatio;
 
-    G.width   = window.innerWidth;
-    G.height  = window.innerHeight;
-    G.centerX = G.width / 2;
-    G.centerY = G.height / 2;
+    G.width   = Math.round(window.innerWidth);
+    G.height  = Math.round(window.innerHeight);
+    G.centerX = Math.round(G.width / 2);
+    G.centerY = Math.round(G.height / 2);
 
-    // Physical pixels
-    G.canvas.width  = G.width * dpr;
-    G.canvas.height = G.height * dpr;
+    // Physical pixels (rounded to avoid sub-pixel GPU artifacts)
+    G.canvas.width  = Math.round(G.width * dpr);
+    G.canvas.height = Math.round(G.height * dpr);
 
     // CSS size
     G.canvas.style.width  = G.width + 'px';
