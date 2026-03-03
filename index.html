@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="msapplication-tap-highlight" content="no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0a0f'/%3E%3Ccircle cx='90' cy='95' r='45' fill='%23e0aaff'/%3E%3C/svg%3E">
+  <title>Mochi</title>
+
+  <style>
+    /* ─── CSS Variables ─── */
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #1a1a2e;
+      --accent: #e0aaff;
+      --text: #f0f0f0;
+      --text-dim: #666680;
+      --transition-speed: 0.3s;
+    }
+
+    /* ─── Reset ─── */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    /* ─── Document ─── */
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-primary);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 300;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+
+    /* ─── Canvas ─── */
+    #gameCanvas {
+      display: block;
+      width: 100vw;
+      height: 100dvh;
+      touch-action: none;
+      background-color: var(--bg-primary);
+    }
+
+    /* ─── UI Layer ─── */
+    #ui-layer {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #ui-layer .interactive {
+      pointer-events: auto;
+    }
+
+    /* ─── Header ─── */
+    #ui-header {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      padding-top: max(1rem, env(safe-area-inset-top));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      opacity: 0;
+      transition: opacity var(--transition-speed) ease;
+    }
+
+    #ui-header.visible {
+      opacity: 1;
+    }
+
+    #creature-name {
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      text-shadow: 0 0 20px rgba(224, 170, 255, 0.3);
+    }
+
+    #menu-btn {
+      width: 36px; height: 36px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      padding: 6px;
+      border-radius: 8px;
+      transition: background var(--transition-speed) ease;
+    }
+
+    #menu-btn:active {
+      background: rgba(224, 170, 255, 0.1);
+    }
+
+    #menu-btn span {
+      display: block;
+      width: 18px; height: 1.5px;
+      background-color: var(--text-dim);
+      border-radius: 1px;
+      transition: background-color var(--transition-speed) ease;
+    }
+
+    #menu-btn:active span {
+      background-color: var(--accent);
+    }
+
+    /* ─── Naming Overlay ─── */
+    #naming-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+
+    #naming-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    #naming-prompt {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    #name-input-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+      width: 80%;
+      max-width: 280px;
+    }
+
+    #name-input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--text-dim);
+      padding: 0.75rem 0.25rem;
+      font-family: inherit;
+      font-size: 1.5rem;
+      font-weight: 300;
+      color: var(--text);
+      text-align: center;
+      letter-spacing: 0.08em;
+      outline: none;
+      caret-color: var(--accent);
+      transition: border-color var(--transition-speed) ease;
+    }
+
+    #name-input::placeholder {
+      color: var(--text-dim);
+      opacity: 0.5;
+      font-weight: 200;
+    }
+
+    #name-input:focus {
+      border-bottom-color: var(--accent);
+    }
+
+    #name-confirm-btn {
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      color: var(--text-dim);
+      padding: 0.6rem 2.5rem;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 400;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: all var(--transition-speed) ease;
+    }
+
+    #name-confirm-btn:active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(224, 170, 255, 0.05);
+    }
+
+    /* ─── State Info (debug) ─── */
+    #state-info {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      opacity: 0.4;
+      letter-spacing: 0.1em;
+    }
+
+    /* ─── Settings Overlay ─── */
+    #settings-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(5, 5, 12, 0.88);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    #settings-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    #settings-panel {
+      width: 85%;
+      max-width: 320px;
+      background: rgba(26, 26, 46, 0.95);
+      border-radius: 20px;
+      padding: 1.5rem;
+      border: 1px solid rgba(224, 170, 255, 0.1);
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+    }
+
+    #settings-overlay.visible #settings-panel {
+      transform: scale(1);
+    }
+
+    #settings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    #settings-header span {
+      font-size: 1rem;
+      font-weight: 400;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+    }
+
+    #settings-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+
+    .settings-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 0;
+    }
+
+    .settings-item span {
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .settings-toggle {
+      background: rgba(224, 170, 255, 0.15);
+      border: 1px solid rgba(224, 170, 255, 0.2);
+      color: var(--accent);
+      padding: 0.3rem 1rem;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 0.75rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .settings-toggle.off {
+      background: rgba(100, 100, 128, 0.15);
+      border-color: rgba(100, 100, 128, 0.2);
+      color: var(--text-dim);
+    }
+
+    .settings-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.06);
+      margin: 0.75rem 0;
+    }
+
+    #reset-btn {
+      width: 100%;
+      background: rgba(255, 80, 80, 0.08);
+      border: 1px solid rgba(255, 80, 80, 0.15);
+      color: #ff6b6b;
+      padding: 0.7rem;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #reset-btn:active {
+      background: rgba(255, 80, 80, 0.2);
+    }
+
+    #reset-warning {
+      text-align: center;
+      font-size: 0.65rem;
+      color: var(--text-dim);
+      margin-top: 0.5rem;
+      opacity: 0.6;
+    }
+
+    .settings-version {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      opacity: 0.4;
+      margin-top: 0.5rem;
+    }
+
+    #reset-confirm {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(5, 5, 12, 0.92);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 25;
+      pointer-events: auto;
+    }
+
+    #reset-confirm.visible {
+      display: flex;
+    }
+
+    #reset-confirm-box p {
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+      color: var(--text);
+      text-align: center;
+    }
+
+    .confirm-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    #confirm-yes, #confirm-no {
+      padding: 0.5rem 2rem;
+      border-radius: 20px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      border: 1px solid;
+      background: transparent;
+    }
+
+    #confirm-yes {
+      border-color: rgba(255, 80, 80, 0.3);
+      color: #ff6b6b;
+    }
+
+    #confirm-yes:active {
+      background: rgba(255, 80, 80, 0.15);
+    }
+
+    #confirm-no {
+      border-color: var(--text-dim);
+      color: var(--text-dim);
+    }
+
+    /* ─── Menu Open Button ─── */
+    #menu-open-btn {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 52px;
+      height: 30px;
+      border: none;
+      background: rgba(224, 170, 255, 0.1);
+      border-radius: 15px;
+      cursor: pointer;
+      z-index: 12;
+      pointer-events: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.3s ease, transform 0.3s ease, background 0.2s ease;
+      opacity: 0;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    #menu-open-btn.visible {
+      opacity: 1;
+    }
+
+    #menu-open-btn.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(20px);
+    }
+
+    #menu-open-btn:active {
+      background: rgba(224, 170, 255, 0.25);
+    }
+
+    #menu-open-btn .arrow-icon {
+      width: 18px;
+      height: 10px;
+      position: relative;
+    }
+
+    #menu-open-btn .arrow-icon::before,
+    #menu-open-btn .arrow-icon::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      width: 10px;
+      height: 1.5px;
+      background: var(--accent);
+      border-radius: 1px;
+    }
+
+    #menu-open-btn .arrow-icon::before {
+      left: 0;
+      transform: rotate(-35deg);
+      transform-origin: bottom left;
+    }
+
+    #menu-open-btn .arrow-icon::after {
+      right: 0;
+      transform: rotate(35deg);
+      transform-origin: bottom right;
+    }
+
+    /* ─── Talk Button ─── */
+    #talk-btn {
+      position: fixed;
+      bottom: 14px;
+      right: 16px;
+      width: 46px;
+      height: 46px;
+      border: none;
+      background: rgba(224, 170, 255, 0.12);
+      border: 1px solid rgba(224, 170, 255, 0.15);
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 12;
+      pointer-events: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: opacity 0.3s ease, transform 0.15s ease, background 0.2s ease;
+      opacity: 0;
+      font-size: 1.1rem;
+      padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    #talk-btn.visible {
+      opacity: 1;
+    }
+
+    #talk-btn:active {
+      background: rgba(224, 170, 255, 0.3);
+      transform: scale(0.9);
+    }
+
+    #talk-btn.pulse {
+      animation: talkPulse 0.3s ease;
+    }
+
+    @keyframes talkPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    /* ─── Color dots ─── */
+    .color-dot {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .color-dot.active {
+      border-color: #fff;
+      transform: scale(1.2);
+    }
+    .color-dot:active { transform: scale(0.9); }
+
+    /* ─── Achievement items ─── */
+    .achv {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.1rem;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .achv.locked { filter: grayscale(1) brightness(0.3); }
+    .achv.unlocked { background: rgba(224,170,255,0.1); }
+
+    /* ─── Diary entries ─── */
+    .diary-entry {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      padding: 0.25rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .diary-entry .de-time {
+      font-size: 0.6rem;
+      opacity: 0.5;
+      margin-left: 0.5rem;
+    }
+
+    /* ─── Landscape Warning ─── */
+    @media screen and (orientation: landscape) and (max-height: 500px) {
+      #ui-layer::after {
+        content: 'Gira tu dispositivo ↻';
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: var(--bg-primary);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1rem;
+        color: var(--text-dim);
+        letter-spacing: 0.1em;
+        z-index: 100;
+        pointer-events: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Canvas principal del juego -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- Capa UI encima del canvas -->
+  <div id="ui-layer">
+    <div id="ui-header">
+      <span id="creature-name"></span>
+      <button id="menu-btn" class="interactive" aria-label="Menú">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+
+    <div id="naming-overlay">
+      <p id="naming-prompt">Dale un nombre</p>
+      <div id="name-input-wrapper">
+        <input
+          type="text"
+          id="name-input"
+          class="interactive"
+          placeholder="Mochi"
+          maxlength="12"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="words"
+          spellcheck="false"
+        >
+        <button id="name-confirm-btn" class="interactive">Confirmar</button>
+      </div>
+    </div>
+
+    <!-- Menu open button -->
+    <button id="menu-open-btn" class="interactive" aria-label="Abrir menú">
+      <div class="arrow-icon"></div>
+    </button>
+
+    <!-- Talk button -->
+    <button id="talk-btn" class="interactive" aria-label="Hablar">🔔</button>
+
+    <div id="state-info"></div>
+
+    <!-- Settings Overlay -->
+    <div id="settings-overlay">
+      <div id="settings-panel" class="interactive">
+        <div id="settings-header">
+          <span>Ajustes</span>
+          <button id="settings-close-btn" class="interactive">✕</button>
+        </div>
+        <div class="settings-item">
+          <span>🔊 Sonido</span>
+          <button id="sound-toggle" class="settings-toggle interactive">ON</button>
+        </div>
+        <div class="settings-item">
+          <span>🔔 Notificaciones</span>
+          <button id="notif-toggle" class="settings-toggle interactive">ON</button>
+        </div>
+        <div class="settings-item">
+          <span>📳 Vibración</span>
+          <button id="haptic-toggle" class="settings-toggle interactive">ON</button>
+        </div>
+        <div class="settings-item">
+          <span>📱 Acelerómetro</span>
+          <button id="accel-toggle" class="settings-toggle interactive off">OFF</button>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-item">
+          <span>🎨 Color base</span>
+          <div style="display:flex;gap:6px">
+            <button class="color-dot interactive" data-hue="270" style="background:hsl(270,60%,65%)"></button>
+            <button class="color-dot interactive" data-hue="330" style="background:hsl(330,65%,65%)"></button>
+            <button class="color-dot interactive" data-hue="200" style="background:hsl(200,60%,60%)"></button>
+            <button class="color-dot interactive" data-hue="130" style="background:hsl(130,55%,60%)"></button>
+            <button class="color-dot interactive" data-hue="45" style="background:hsl(45,70%,65%)"></button>
+            <button class="color-dot interactive" data-hue="0" style="background:hsl(0,65%,60%)"></button>
+          </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div id="achievements-section">
+          <span style="font-size:0.85rem;color:var(--accent);letter-spacing:0.08em">Logros</span>
+          <div id="achievements-grid" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:0.5rem"></div>
+        </div>
+        <div class="settings-divider"></div>
+        <div id="diary-section" style="max-height:100px;overflow-y:auto">
+          <span style="font-size:0.85rem;color:var(--accent);letter-spacing:0.08em">Diario</span>
+          <div id="diary-entries" style="margin-top:0.4rem"></div>
+        </div>
+        <div class="settings-divider"></div>
+        <button id="reset-btn" class="interactive">🗑️ Iniciar desde cero</button>
+        <p id="reset-warning">Se perderá todo el progreso</p>
+        <div class="settings-divider"></div>
+        <p class="settings-version">Mochi v1.0</p>
+      </div>
+    </div>
+
+    <!-- Reset Confirmation -->
+    <div id="reset-confirm">
+      <div id="reset-confirm-box" class="interactive">
+        <p>¿Estás seguro?<br><small style="color:var(--text-dim)">Se perderá todo el progreso</small></p>
+        <div class="confirm-buttons">
+          <button id="confirm-no" class="interactive">No</button>
+          <button id="confirm-yes" class="interactive">Sí</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts en orden de dependencia -->
+  <script src="js/input.js"></script>
+  <script src="js/background.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/egg.js"></script>
+  <script src="js/creaturePhysics.js"></script>
+  <script src="js/creatureAI.js"></script>
+  <script src="js/creature.js"></script>
+  <script src="js/emotions.js"></script>
+  <script src="js/needs.js"></script>
+  <script src="js/personality.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/items.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/notifications.js"></script>
+  <script src="js/storage.js"></script>
+
+  <!-- Achievements + Settings Logic -->
+  <script>
+  (function() {
+    'use strict';
+
+    // ═══ ACHIEVEMENTS ═══
+    var ACHIEVEMENTS = [
+      { id: 'hatch',    emoji: '🥚', name: 'Primer aliento',    check: function() { return window.GAME && window.GAME.state === 'living'; } },
+      { id: 'feed1',    emoji: '🍎', name: 'Primera comida',    check: function() { var s = window.Storage && window.Storage.getStats(); return s && s.totalFeedings > 0; } },
+      { id: 'pet10',    emoji: '🤗', name: '10 caricias',       check: function() { var s = window.Storage && window.Storage.getStats(); return s && s.totalPets >= 10; } },
+      { id: 'week',     emoji: '📅', name: 'Una semana juntos', check: function() { return window.Storage && window.Storage.getDaysAlive() >= 7; } },
+      { id: 'trust80',  emoji: '💜', name: 'Confianza total',   check: function() { return window.Personality && window.Personality.getTrait('trust') >= 80; } },
+      { id: 'night5',   emoji: '🌙', name: 'Ave nocturna',      check: function() { var p = window.Personality && window.Personality.analyzePatterns(); return p && p.isNocturnal; } },
+      { id: 'grown',    emoji: '🌱', name: 'Adulto',            check: function() { return window.Creature && window.Creature.growth >= 0.95; } },
+      { id: 'pet100',   emoji: '⭐', name: '100 caricias',      check: function() { var s = window.Storage && window.Storage.getStats(); return s && s.totalPets >= 100; } },
+      { id: 'play50',   emoji: '🎮', name: 'Juguetón',          check: function() { return window.Personality && window.Personality.getTrait('playfulness') >= 70; } },
+      { id: 'month',    emoji: '🏆', name: 'Un mes juntos',     check: function() { return window.Storage && window.Storage.getDaysAlive() >= 30; } }
+    ];
+
+    var _unlocked = {};
+    var _achvKey = 'mochi_achievements';
+
+    function loadAchievements() {
+      try {
+        var raw = localStorage.getItem(_achvKey);
+        if (raw) _unlocked = JSON.parse(raw);
+      } catch(e) {}
+    }
+
+    function saveAchievements() {
+      try { localStorage.setItem(_achvKey, JSON.stringify(_unlocked)); } catch(e) {}
+    }
+
+    function checkAchievements() {
+      var changed = false;
+      for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+        var a = ACHIEVEMENTS[i];
+        if (_unlocked[a.id]) continue;
+        try {
+          if (a.check()) {
+            _unlocked[a.id] = Date.now();
+            changed = true;
+            console.log('[Achievements] Unlocked:', a.name, a.emoji);
+            // Particle burst celebration
+            if (window.ParticleSystem && window.Creature) {
+              window.ParticleSystem.burst(window.Creature.x, window.Creature.y, { h: 45, s: 90, l: 75 }, 12);
+            }
+          }
+        } catch(e) {}
+      }
+      if (changed) saveAchievements();
+    }
+
+    function renderAchievementsGrid() {
+      var grid = document.getElementById('achievements-grid');
+      if (!grid) return;
+      grid.innerHTML = '';
+      for (var i = 0; i < ACHIEVEMENTS.length; i++) {
+        var a = ACHIEVEMENTS[i];
+        var el = document.createElement('div');
+        el.className = 'achv ' + (_unlocked[a.id] ? 'unlocked' : 'locked');
+        el.textContent = a.emoji;
+        el.title = a.name;
+        grid.appendChild(el);
+      }
+    }
+
+    function renderDiary() {
+      var container = document.getElementById('diary-entries');
+      if (!container || !window.Personality) return;
+      var entries = window.Personality.getDiary(8);
+      container.innerHTML = '';
+      if (entries.length === 0) {
+        container.innerHTML = '<div class="diary-entry" style="opacity:0.3">Sin entradas aún...</div>';
+        return;
+      }
+      for (var i = entries.length - 1; i >= 0; i--) {
+        var div = document.createElement('div');
+        div.className = 'diary-entry';
+        div.innerHTML = entries[i].text + '<span class="de-time">' + entries[i].time + '</span>';
+        container.appendChild(div);
+      }
+    }
+
+    // Check achievements every 10 seconds
+    loadAchievements();
+    setInterval(function() {
+      if (window.GAME && window.GAME.state === 'living') checkAchievements();
+    }, 10000);
+
+    // ═══ SETTINGS BINDINGS ═══
+    function initSettingsExtras() {
+      // Color dots
+      var dots = document.querySelectorAll('.color-dot');
+      dots.forEach(function(dot) {
+        dot.addEventListener('click', function() {
+          dots.forEach(function(d) { d.classList.remove('active'); });
+          dot.classList.add('active');
+          var hue = parseInt(dot.dataset.hue);
+          if (window.Creature) window.Creature.setColor(hue, 60, 65);
+          if (window.EmotionSystem) {
+            // Temporarily shift the neutral color
+            window._customBaseHue = hue;
+          }
+        });
+      });
+
+      // Haptic toggle
+      var hapticBtn = document.getElementById('haptic-toggle');
+      if (hapticBtn) {
+        hapticBtn.addEventListener('click', function() {
+          var isOff = hapticBtn.textContent.trim() === 'OFF';
+          hapticBtn.textContent = isOff ? 'ON' : 'OFF';
+          hapticBtn.classList.toggle('off', !isOff);
+          window._hapticEnabled = isOff;
+          // Override vibrate if disabled
+          if (!isOff) {
+            navigator._origVibrate = navigator._origVibrate || navigator.vibrate;
+            navigator.vibrate = function() { return false; };
+          } else if (navigator._origVibrate) {
+            navigator.vibrate = navigator._origVibrate;
+          }
+        });
+      }
+
+      // Accelerometer toggle
+      var accelBtn = document.getElementById('accel-toggle');
+      if (accelBtn) {
+        accelBtn.addEventListener('click', function() {
+          var isOff = accelBtn.textContent.trim() === 'OFF';
+          accelBtn.textContent = isOff ? 'ON' : 'OFF';
+          accelBtn.classList.toggle('off', !isOff);
+          if (window.Creature && window.Creature.setAccelerometer) {
+            window.Creature.setAccelerometer(isOff);
+          }
+        });
+      }
+
+      // Render achievements and diary when settings open
+      var menuBtn = document.getElementById('menu-btn');
+      if (menuBtn) {
+        menuBtn.addEventListener('click', function() {
+          setTimeout(function() {
+            renderAchievementsGrid();
+            renderDiary();
+          }, 100);
+        });
+      }
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initSettingsExtras);
+    } else {
+      initSettingsExtras();
+    }
+
+    window.AchievementSystem = {
+      check: checkAchievements,
+      getUnlocked: function() { return Object.assign({}, _unlocked); },
+      getCount: function() { return Object.keys(_unlocked).length; },
+      getTotal: function() { return ACHIEVEMENTS.length; }
+    };
+  })();
+  </script>
+
+  <!-- Talk/Communication System -->
+  <script>
+  (function() {
+    'use strict';
+
+    var _btn = null;
+    var _callHistory = [];     // timestamps of user calls
+    var _maxHistory = 8;
+    var _respondTimer = 0;
+    var _pendingResponses = []; // queued creature responses
+    var _lastCallTime = 0;
+    var _comboCount = 0;       // consecutive rapid calls
+    function init() {
+      _btn = document.getElementById('talk-btn');
+      if (!_btn) return;
+
+      _btn.addEventListener('click', function() {
+        if (window.GAME.state !== 'living') return;
+        doCall();
+      });
+    }
+
+    function doCall() {
+      var now = Date.now();
+      var timeSinceLast = now - _lastCallTime;
+
+      // Track combo (rapid consecutive calls)
+      if (timeSinceLast < 800) {
+        _comboCount++;
+      } else {
+        _comboCount = 1;
+      }
+      _lastCallTime = now;
+
+      // Record in history
+      _callHistory.push(now);
+      if (_callHistory.length > _maxHistory) _callHistory.shift();
+
+      // Play user call sound with pitch variation based on combo
+      var pitch = 0.9 + _comboCount * 0.08;
+      pitch = Math.min(pitch, 1.5);
+      if (window.AudioSystem) {
+        window.AudioSystem.play('call', { volume: 0.35, pitch: pitch });
+      }
+
+      // Button pulse animation
+      _btn.classList.remove('pulse');
+      void _btn.offsetWidth; // force reflow
+      _btn.classList.add('pulse');
+
+      // Creature reacts: looks toward bottom-right (talk button area)
+      if (window.CreaturePhysics) {
+        var G = window.GAME;
+        var P = window.CreaturePhysics;
+        // Small nudge toward the sound source
+        var dx = (G.width - 40) - P.x;
+        var dy = (G.height - 40) - P.y;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        P.applyForce((dx / dist) * 8, (dy / dist) * 5);
+      }
+
+      // Emotion boost from communication
+      if (window.EmotionSystem) {
+        window.EmotionSystem.modify('happiness', 1.5);
+        window.EmotionSystem.modify('curiosity', 2);
+        window.EmotionSystem.modify('love', 0.5);
+      }
+
+      // Personality records interaction
+      if (window.Personality) {
+        window.Personality.recordEvent('tap');
+      }
+
+      // Schedule creature response
+      scheduleResponse();
+
+    }
+
+    function scheduleResponse() {
+      // Analyze user's rhythm
+      var delays = [];
+      for (var i = 1; i < _callHistory.length; i++) {
+        delays.push(_callHistory[i] - _callHistory[i - 1]);
+      }
+
+      var mood = window.EmotionSystem ? window.EmotionSystem.getDominant() : 'neutral';
+      var trust = window.Personality ? window.Personality.getTrait('trust') : 50;
+      var playful = window.Personality ? window.Personality.getTrait('playfulness') : 50;
+
+      // Response delay: lower trust = slower response, higher = quicker
+      var baseDelay = 400 + (100 - trust) * 5; // 400-900ms
+
+      // Number of response sounds (1-3)
+      var responseCount = 1;
+      if (_comboCount >= 3 && playful > 45) responseCount = 2;
+      if (_comboCount >= 5 && playful > 60) responseCount = 3;
+
+      // If creature is sad/sleepy, fewer responses
+      if (mood === 'sadness' || mood === 'sad' || mood === 'sleepy') {
+        responseCount = 1;
+        baseDelay += 300;
+      }
+      // If excited/playful, more and faster
+      if (mood === 'playful' || mood === 'excited' || mood === 'happy' || mood === 'happiness') {
+        baseDelay -= 150;
+        if (responseCount < 2) responseCount = 2;
+      }
+
+      // Clear any pending responses
+      for (var c = 0; c < _pendingResponses.length; c++) {
+        clearTimeout(_pendingResponses[c]);
+      }
+      _pendingResponses = [];
+
+      // Queue responses
+      for (var r = 0; r < responseCount; r++) {
+        var delay = baseDelay + r * (250 + Math.random() * 200);
+
+        // If user has a rhythm, try to match it
+        if (delays.length >= 2 && _comboCount >= 3) {
+          var avgDelay = 0;
+          for (var d = 0; d < delays.length; d++) avgDelay += delays[d];
+          avgDelay /= delays.length;
+          // Echo their rhythm for subsequent notes
+          if (r > 0) delay = baseDelay + r * Math.min(avgDelay, 600);
+        }
+
+        (function(index, d) {
+          var tid = setTimeout(function() {
+            playResponse(index);
+          }, d);
+          _pendingResponses.push(tid);
+        })(r, delay);
+      }
+    }
+
+    function playResponse(index) {
+      if (!window.AudioSystem) return;
+
+      var mood = window.EmotionSystem ? window.EmotionSystem.getDominant() : 'neutral';
+      var playful = window.Personality ? window.Personality.getTrait('playfulness') : 50;
+
+      // Pitch variation based on mood and combo
+      var basePitch = 1.0;
+      if (mood === 'happiness' || mood === 'happy' || mood === 'playful') basePitch = 1.15;
+      if (mood === 'sadness' || mood === 'sad') basePitch = 0.75;
+      if (mood === 'sleepy') basePitch = 0.65;
+      if (mood === 'fear' || mood === 'scared') basePitch = 1.3;
+
+      // Add variation per note in sequence
+      var pitch = basePitch + index * 0.1 + (Math.random() - 0.5) * 0.15;
+
+      // Choose sound based on mood
+      var sound = 'respond';
+      if (mood === 'sadness' || mood === 'sad') sound = 'whimper';
+      if (mood === 'sleepy') sound = 'yawn';
+      if (mood === 'fear' || mood === 'scared') sound = 'squeak';
+
+      // Sometimes playful creatures mimic with chirps
+      if (playful > 60 && Math.random() < 0.4) sound = 'chirp';
+
+      window.AudioSystem.play(sound, {
+        volume: 0.3 - index * 0.03,
+        pitch: pitch,
+        duration: 200 + index * 50
+      });
+
+      // Creature bounces slightly with each response
+      if (window.CreaturePhysics) {
+        window.CreaturePhysics.applyForce(
+          (Math.random() - 0.5) * 15,
+          -(10 + index * 8)
+        );
+      }
+    }
+
+    // Show/hide button based on game state
+    function updateVisibility() {
+      if (!_btn) return;
+      if (window.GAME && window.GAME.state === 'living') {
+        _btn.classList.add('visible');
+      } else {
+        _btn.classList.remove('visible');
+      }
+    }
+
+    // Check visibility every second
+    setInterval(updateVisibility, 1000);
+
+    // Init on DOM ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+
+    window.TalkSystem = {
+      getComboCount: function() { return _comboCount; }
+    };
+  })();
+  </script>
+
+  <script src="js/main.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js', { scope: './' })
+          .then(function(reg) {
+            console.log('[Mochi] Service Worker registered — scope:', reg.scope);
+
+            // Check for updates periodically
+            setInterval(function() {
+              reg.update();
+            }, 60 * 60 * 1000); // every hour
+          })
+          .catch(function(err) {
+            console.warn('[Mochi] SW registration failed:', err.message);
+          });
+      });
+
+      // Schedule notifications when app goes to background
+      document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+          if (window.NotificationSystem && window.NotificationSystem.isInitialized()) {
+            window.NotificationSystem.checkAndSchedule();
+          }
+        } else if (document.visibilityState === 'visible') {
+          // App came back — cancel pending notifications
+          if (window.NotificationSystem && window.NotificationSystem.isInitialized()) {
+            window.NotificationSystem.cancelAll();
+          }
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
