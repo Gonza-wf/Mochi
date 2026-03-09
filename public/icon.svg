@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" fill="#000000"/>
+  <!-- Aura exterior -->
+  <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#b090ff" stop-opacity="0.18"/>
+    <stop offset="60%" stop-color="#7040c0" stop-opacity="0.08"/>
+    <stop offset="100%" stop-color="#3a1080" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="240" fill="url(#aura)"/>
+  <!-- Aura media -->
+  <radialGradient id="aura2" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#c8a8ff" stop-opacity="0.28"/>
+    <stop offset="100%" stop-color="#8050d0" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="150" fill="url(#aura2)"/>
+  <!-- Ala superior izquierda -->
+  <path d="M256 256 C230 210 185 190 170 220 C158 244 200 260 256 256Z" fill="rgba(210,195,255,0.22)" stroke="rgba(200,185,255,0.18)" stroke-width="1"/>
+  <!-- Ala superior derecha -->
+  <path d="M256 256 C282 210 327 190 342 220 C354 244 312 260 256 256Z" fill="rgba(210,195,255,0.22)" stroke="rgba(200,185,255,0.18)" stroke-width="1"/>
+  <!-- Ala inferior izquierda -->
+  <path d="M256 256 C228 278 195 295 188 318 C182 336 215 338 256 256Z" fill="rgba(200,185,255,0.16)" stroke="rgba(190,175,250,0.14)" stroke-width="1"/>
+  <!-- Ala inferior derecha -->
+  <path d="M256 256 C284 278 317 295 324 318 C330 336 297 338 256 256Z" fill="rgba(200,185,255,0.16)" stroke="rgba(190,175,250,0.14)" stroke-width="1"/>
+  <!-- Orbe glow externo -->
+  <radialGradient id="orb3" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#e8e0ff" stop-opacity="0.3"/>
+    <stop offset="100%" stop-color="#b090ff" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="80" fill="url(#orb3)"/>
+  <!-- Orbe glow medio -->
+  <radialGradient id="orb2" cx="46%" cy="44%" r="50%">
+    <stop offset="0%" stop-color="#f0ecff" stop-opacity="0.9"/>
+    <stop offset="55%" stop-color="#d8ccff" stop-opacity="0.65"/>
+    <stop offset="100%" stop-color="#b095f0" stop-opacity="0.15"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="48" fill="url(#orb2)"/>
+  <!-- Orbe núcleo -->
+  <radialGradient id="orb1" cx="44%" cy="42%" r="50%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+    <stop offset="40%" stop-color="#f5f0ff" stop-opacity="0.95"/>
+    <stop offset="100%" stop-color="#d8c8ff" stop-opacity="0.5"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="30" fill="url(#orb1)"/>
+  <!-- Centro brillante -->
+  <radialGradient id="center" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+    <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+  </radialGradient>
+  <circle cx="256" cy="256" r="12" fill="url(#center)"/>
+  <!-- Partículas -->
+  <circle cx="200" cy="190" r="3" fill="rgba(200,180,255,0.55)"/>
+  <circle cx="318" cy="185" r="2.5" fill="rgba(190,170,250,0.5)"/>
+  <circle cx="180" cy="290" r="2" fill="rgba(210,195,255,0.4)"/>
+  <circle cx="330" cy="300" r="2.5" fill="rgba(200,185,255,0.45)"/>
+  <circle cx="245" cy="165" r="2" fill="rgba(220,210,255,0.5)"/>
+  <circle cx="275" cy="340" r="2" fill="rgba(195,178,248,0.4)"/>
+</svg>

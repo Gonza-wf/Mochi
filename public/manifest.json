@@ -1,0 +1,20 @@
+{
+  "name": "Hada de Luz",
+  "short_name": "Hada",
+  "description": "Tu mascota virtual. Un hada de luz que te recuerda, aprende de vos y crece con vos.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["games", "lifestyle"],
+  "lang": "es"
+}
