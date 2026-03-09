@@ -134,20 +134,17 @@ export class PersonalQuestionsEngine {
   private store: QAStore;
   private pendingQuestion: PersonalQuestion | null = null;
   private lastQuestionTime = 0;
-  private MIN_INTERVAL = 8 * 60 * 1000; // 8 min between questions
+  private MIN_INTERVAL = 90 * 1000; // 90 sec between questions
 
   constructor() {
     this.store = load();
     this.lastQuestionTime = this.store.lastAsked;
   }
 
-  shouldAskQuestion(sessionCount: number): boolean {
-    if (sessionCount < 2) return false; // Only after first session
+  shouldAskQuestion(_sessionCount: number): boolean {
     const now = Date.now();
     if (now - this.lastQuestionTime < this.MIN_INTERVAL) return false;
-    // Probability increases with more sessions, capped at 40%
-    const prob = Math.min(0.08 + sessionCount * 0.015, 0.4);
-    return Math.random() < prob;
+    return Math.random() < 0.65;
   }
 
   getNextQuestion(): PersonalQuestion | null {

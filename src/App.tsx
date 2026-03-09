@@ -7,6 +7,7 @@ import { MoodEngine } from './mood/moodEngine';
 import TeachingInput from './teaching/TeachingInput';
 import { soundEngine } from './sound/soundEngine';
 import { ParticleDrawing } from './drawing/particleDrawing';
+import { PlayerDrawing } from './drawing/playerDrawing';
 import { AmbientWeather } from './ambient/ambientWeather';
 import { BodyLanguage } from './body/bodyLanguage';
 import { RitualsEngine } from './rituals/ritualsEngine';
@@ -120,6 +121,8 @@ export default function App() {
   const gestureRef = useRef<GestureEngine | null>(null);
   const moodRef = useRef<MoodEngine | null>(null);
   const drawingRef = useRef<ParticleDrawing | null>(null);
+  const playerDrawingRef = useRef<PlayerDrawing | null>(null);
+  const isEmptyDragRef = useRef(false);
   const weatherRef = useRef<AmbientWeather | null>(null);
   const bodyRef = useRef<BodyLanguage | null>(null);
   const ritualsRef = useRef<RitualsEngine | null>(null);
@@ -156,6 +159,7 @@ export default function App() {
   const isWaitingAnswerRef = useRef(false);
   const companionShownRef = useRef(false);
   const archetype = useRef('curiosa');
+  const hasActiveUIRef = useRef(false);
 
   useEffect(() => { setIsMuted(soundEngine.isMuted()); }, []);
 
@@ -214,6 +218,7 @@ export default function App() {
     personalQRef.current?.clearPending();
     setPersonalQuestion(null);
     isWaitingAnswerRef.current = false;
+    hasActiveUIRef.current = false;
     if (followUp) setTimeout(() => showMessage(followUp), 1500);
   }, [showMessage]);
 
@@ -221,6 +226,7 @@ export default function App() {
     personalQRef.current?.clearPending();
     setPersonalQuestion(null);
     isWaitingAnswerRef.current = false;
+    hasActiveUIRef.current = false;
   }, []);
 
   // Decision handlers
@@ -228,6 +234,7 @@ export default function App() {
     const outcome = decisionsRef.current?.makeChoice(choice);
     setActiveDecision(null);
     isWaitingAnswerRef.current = false;
+    hasActiveUIRef.current = false;
     if (outcome) setTimeout(() => showMessage(outcome), 800);
   }, [showMessage]);
 
@@ -235,6 +242,7 @@ export default function App() {
   const handleFreeConvoSend = useCallback((text: string) => {
     setShowFreeConvo(false);
     isWaitingAnswerRef.current = false;
+    hasActiveUIRef.current = false;
     const badDay = badDaysRef.current?.isBadDay() ?? false;
     const arc = archetype.current;
     const response = generateConvoResponse(text, arc, badDay);
@@ -244,9 +252,18 @@ export default function App() {
   const handleFreeConvoClose = useCallback(() => {
     setShowFreeConvo(false);
     isWaitingAnswerRef.current = false;
+    hasActiveUIRef.current = false;
   }, []);
 
   // Mini game handlers
+  const handleMiniGameCancel = useCallback(() => {
+    miniGamesRef.current?.cancelGame();
+    setActiveMiniGame(null);
+    setMiniGameInputPhase(false);
+    isWaitingAnswerRef.current = false;
+    hasActiveUIRef.current = false;
+  }, []);
+
   const handleMiniGameReady = useCallback(() => {
     const game = miniGamesRef.current?.getActiveGame();
     if (!game) return;
@@ -280,6 +297,7 @@ export default function App() {
     explorationRef.current = new ExplorationEngine();
     moodRef.current = new MoodEngine();
     drawingRef.current = new ParticleDrawing();
+    playerDrawingRef.current = new PlayerDrawing();
     weatherRef.current = new AmbientWeather();
     bodyRef.current = new BodyLanguage();
     ritualsRef.current = new RitualsEngine();
@@ -354,63 +372,87 @@ export default function App() {
       setTimeout(doOpening, 1500);
     }
 
-    // Idle check — also tries personal questions and decisions
+    // Idle check — uses refs to avoid stale closures
     let idleCheckHandle: ReturnType<typeof setTimeout> | null = null;
+
     const scheduleIdleCheck = () => {
       const learning = memory.getLearning();
-      const base = learning ? learning.getIdleInterval() : 18000;
-      const interval = base * (0.7 + Math.random() * 0.6);
+      const base = learning ? learning.getIdleInterval() : 14000;
+      const interval = (base * (0.6 + Math.random() * 0.5));
       idleCheckHandle = setTimeout(() => {
-        const exploration = explorationRef.current;
-        if (exploration && exploration.getExplorationPhase() !== 'idle') {
+        // Don't interrupt active UI
+        if (hasActiveUIRef.current || isWaitingAnswerRef.current) {
           scheduleIdleCheck(); return;
         }
 
-        // Bad day — use bad day phrases instead
+        // Don't interrupt exploration messages
+        const exploration = explorationRef.current;
+        if (exploration && exploration.getExplorationPhase() === 'investigating') {
+          scheduleIdleCheck(); return;
+        }
+
+        // Bad day — minimal phrases
         if (badDaysRef.current?.isBadDay()) {
           const bdIdle = badDaysRef.current.getBadDayIdlePhrase();
           if (bdIdle) showMessage(bdIdle);
           scheduleIdleCheck(); return;
         }
 
+        // Try mini game (independent of rapid tap)
+        const mood = moodRef.current?.getCurrentMood() ?? 'calm';
+        if (miniGamesRef.current?.shouldProposeGame(mood, totalSessions)) {
+          const w = window.innerWidth; const h = window.innerHeight;
+          const fairyX = fairyPosRef.current.x; const fairyY = fairyPosRef.current.y;
+          const game = miniGamesRef.current.proposeGame(fairyX, fairyY, w, h);
+          if (game) {
+            hasActiveUIRef.current = true;
+            isWaitingAnswerRef.current = true;
+            soundEngine.play('curious');
+            showMessage(game.prompt);
+            setTimeout(() => setActiveMiniGame(game), 2500);
+            scheduleIdleCheck(); return;
+          }
+        }
+
         // Try personal question
-        if (personalQRef.current?.shouldAskQuestion(totalSessions) && !personalQuestion) {
+        if (personalQRef.current?.shouldAskQuestion(totalSessions)) {
           const q = personalQRef.current.getNextQuestion();
           if (q) {
+            hasActiveUIRef.current = true;
+            isWaitingAnswerRef.current = true;
             soundEngine.play('teaching');
             showMessage(q.question);
-            isWaitingAnswerRef.current = true;
-            setTimeout(() => {
-              setPersonalQuestion({ id: q.id, question: q.question });
-            }, 500);
+            setTimeout(() => setPersonalQuestion({ id: q.id, question: q.question }), 1800);
             scheduleIdleCheck(); return;
           }
         }
 
         // Try decision
-        if (decisionsRef.current?.shouldPresentDecision(totalSessions) && !activeDecision) {
+        if (decisionsRef.current?.shouldPresentDecision(totalSessions)) {
           const decision = decisionsRef.current.getNextDecision();
           if (decision) {
-            showMessage(decision.situation);
+            hasActiveUIRef.current = true;
             isWaitingAnswerRef.current = true;
-            setTimeout(() => setActiveDecision(decision), 2000);
+            showMessage(decision.situation);
+            setTimeout(() => setActiveDecision(decision), 2500);
             scheduleIdleCheck(); return;
           }
         }
 
-        // Try personal question reference
-        if (Math.random() < 0.2) {
+        // Try personal question reference (30% chance)
+        if (Math.random() < 0.3) {
           const ref = personalQRef.current?.getReferencePhrase();
           if (ref) { showMessage(ref); scheduleIdleCheck(); return; }
         }
 
-        // Try decision reference
-        if (Math.random() < 0.15) {
+        // Try decision reference (20% chance)
+        if (Math.random() < 0.2) {
           const ref = decisionsRef.current?.getLastDecisionReference();
           if (ref) { showMessage(ref); scheduleIdleCheck(); return; }
         }
 
-        if (Math.random() < 0.35) soundEngine.play('idle');
+        // Default idle phrase
+        if (Math.random() < 0.4) soundEngine.play('idle');
         showMessage(memory.getIdlePhrase());
         scheduleIdleCheck();
       }, interval);
@@ -655,18 +697,30 @@ export default function App() {
       },
       onDragStart: () => {
         soundEngine.unlock();
+        // If drag started near fairy — follow mode
+        // If drag started in empty space — player drawing mode
+        // touchedFairy is already determined by GestureEngine internally
+        // We route based on whether isDraggingRef gets set from a fairy touch
         drawingRef.current?.interrupt();
         fairy.mode = 'following';
         isDraggingRef.current = true;
-        // Open free convo on long hold in empty space — handled by hold gesture
+        isEmptyDragRef.current = false;
       },
       onDragMove: (x: number, y: number) => {
         dragTargetRef.current = { x, y };
         moodRef.current?.onDrag();
         secretRef.current?.onDragMove(x, y);
+        // If empty drag, update player drawing
+        if (isEmptyDragRef.current) {
+          playerDrawingRef.current?.moveDrag(x, y);
+        }
       },
       onDragEnd: () => {
         isDraggingRef.current = false;
+        if (isEmptyDragRef.current) {
+          playerDrawingRef.current?.endDrag();
+          isEmptyDragRef.current = false;
+        }
         secretRef.current?.onDragEnd();
         const secret = secretRef.current?.getPendingSecret();
         if (secret) {
@@ -685,15 +739,23 @@ export default function App() {
     // Long hold in empty space → open free convo
     let holdInEmptyTimer: ReturnType<typeof setTimeout> | null = null;
 
+    // Track empty-space drag start position
+    let emptyDragStartX = 0;
+    let emptyDragStartY = 0;
+    let emptyDragStarted = false;
+    let touchStartNearFairy = false;
+
     const onTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       const t = e.touches[0];
+      touchStartNearFairy = gestureEngine.isNearFairy(t.clientX, t.clientY);
       gestureEngine.onTouchStart(t.clientX, t.clientY);
-      // Check if near fairy for free convo (long hold in open space)
-      const nearFairy = gestureEngine.isNearFairy(t.clientX, t.clientY);
-      if (!nearFairy) {
+      if (!touchStartNearFairy) {
+        emptyDragStartX = t.clientX;
+        emptyDragStartY = t.clientY;
+        emptyDragStarted = false;
         holdInEmptyTimer = setTimeout(() => {
-          if (!isDraggingRef.current && !isTalkingRef.current) {
+          if (!isEmptyDragRef.current && !isTalkingRef.current) {
             setShowFreeConvo(true);
             isWaitingAnswerRef.current = true;
           }
@@ -705,17 +767,39 @@ export default function App() {
       const t = e.touches[0];
       gestureEngine.onTouchMove(t.clientX, t.clientY);
       if (holdInEmptyTimer) { clearTimeout(holdInEmptyTimer); holdInEmptyTimer = null; }
+      // Empty space drag → player drawing
+      if (!touchStartNearFairy) {
+        const dx = t.clientX - emptyDragStartX;
+        const dy = t.clientY - emptyDragStartY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (!emptyDragStarted && dist > 12) {
+          emptyDragStarted = true;
+          isEmptyDragRef.current = true;
+          playerDrawingRef.current?.startDrag(emptyDragStartX, emptyDragStartY);
+        }
+        if (emptyDragStarted) {
+          playerDrawingRef.current?.moveDrag(t.clientX, t.clientY);
+        }
+      }
     };
     const onTouchEnd = () => {
       gestureEngine.onTouchEnd();
       if (holdInEmptyTimer) { clearTimeout(holdInEmptyTimer); holdInEmptyTimer = null; }
+      if (emptyDragStarted) {
+        playerDrawingRef.current?.endDrag();
+        isEmptyDragRef.current = false;
+        emptyDragStarted = false;
+      }
     };
     const onMouseDown = (e: MouseEvent) => {
+      touchStartNearFairy = gestureEngine.isNearFairy(e.clientX, e.clientY);
       gestureEngine.onTouchStart(e.clientX, e.clientY);
-      const nearFairy = gestureEngine.isNearFairy(e.clientX, e.clientY);
-      if (!nearFairy) {
+      if (!touchStartNearFairy) {
+        emptyDragStartX = e.clientX;
+        emptyDragStartY = e.clientY;
+        emptyDragStarted = false;
         holdInEmptyTimer = setTimeout(() => {
-          if (!isDraggingRef.current && !isTalkingRef.current) {
+          if (!isEmptyDragRef.current && !isTalkingRef.current) {
             setShowFreeConvo(true);
             isWaitingAnswerRef.current = true;
           }
@@ -725,10 +809,29 @@ export default function App() {
     const onMouseMove = (e: MouseEvent) => {
       gestureEngine.onTouchMove(e.clientX, e.clientY);
       if (holdInEmptyTimer) { clearTimeout(holdInEmptyTimer); holdInEmptyTimer = null; }
+      // Empty space drag → player drawing
+      if (!touchStartNearFairy && (e.buttons & 1)) {
+        const dx = e.clientX - emptyDragStartX;
+        const dy = e.clientY - emptyDragStartY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (!emptyDragStarted && dist > 12) {
+          emptyDragStarted = true;
+          isEmptyDragRef.current = true;
+          playerDrawingRef.current?.startDrag(emptyDragStartX, emptyDragStartY);
+        }
+        if (emptyDragStarted) {
+          playerDrawingRef.current?.moveDrag(e.clientX, e.clientY);
+        }
+      }
     };
     const onMouseUp = () => {
       gestureEngine.onTouchEnd();
       if (holdInEmptyTimer) { clearTimeout(holdInEmptyTimer); holdInEmptyTimer = null; }
+      if (emptyDragStarted) {
+        playerDrawingRef.current?.endDrag();
+        isEmptyDragRef.current = false;
+        emptyDragStarted = false;
+      }
     };
 
     canvas.addEventListener('touchstart', onTouchStart, { passive: false });
@@ -999,6 +1102,10 @@ export default function App() {
         if (rawTarget) exploreTarget = { x: rawTarget.x * w, y: rawTarget.y * h };
       }
 
+      // Update player drawing trail
+      const playerDrawing = playerDrawingRef.current;
+      if (playerDrawing) playerDrawing.update(rawDt * 16.667);
+
       // Update particle drawing
       const drawing = drawingRef.current;
       const personalityType = memoryRef.current?.getPersonalityType?.() ?? 'curious';
@@ -1220,6 +1327,9 @@ export default function App() {
         for (const a of exploration.getAnomalies()) drawAnomaly(a, w, h);
       }
 
+      // Player drawing trail
+      if (playerDrawingRef.current) playerDrawingRef.current.render(ctx);
+
       drawDrawingTrail();
 
       // Draw sequence flash
@@ -1292,6 +1402,7 @@ export default function App() {
 
   const displayMessage = currentMessage ? currentMessage.replace(/##\d+$/, '') : null;
   const hasActiveUI = !!personalQuestion || !!activeDecision || showFreeConvo || !!activeMiniGame || !!teachingQuestion;
+  hasActiveUIRef.current = hasActiveUI;
 
   return (
     <>
@@ -1355,6 +1466,7 @@ export default function App() {
         <MiniGameUI
           game={activeMiniGame}
           onReady={handleMiniGameReady}
+          onCancel={handleMiniGameCancel}
           progress={miniGameProgress}
           sequencePositions={miniGamesRef.current?.getSequencePositions()}
           currentStep={miniGameStep}

@@ -58,7 +58,7 @@ export interface StayStillGame extends MiniGame {
 export class MiniGamesEngine {
   private store: GameStore;
   private activeGame: MiniGame | null = null;
-  private MIN_INTERVAL = 10 * 60 * 1000; // 10 min between games
+  private MIN_INTERVAL = 2 * 60 * 1000; // 2 min between games
 
   // Stay still game state
   private stayStillStart = 0;
@@ -76,12 +76,10 @@ export class MiniGamesEngine {
     this.store = load();
   }
 
-  shouldProposeGame(mood: string, sessionCount: number): boolean {
-    if (!['happy', 'playful', 'excited'].includes(mood)) return false;
-    if (sessionCount < 2) return false;
+  shouldProposeGame(_mood: string, _sessionCount: number): boolean {
     const now = Date.now();
     if (now - this.store.lastGame < this.MIN_INTERVAL) return false;
-    return Math.random() < 0.12;
+    return Math.random() < 0.7;
   }
 
   proposeGame(_fairyX: number, _fairyY: number, screenW: number, screenH: number): MiniGame {

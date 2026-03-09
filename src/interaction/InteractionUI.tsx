@@ -315,14 +315,15 @@ export function FreeConvoInput({ onSend, onClose, fairyX, fairyY }: FreeConvoPro
 // ---- Mini Game UI ----
 interface MiniGameUIProps {
   game: MiniGame;
-  onReady: () => void; // player confirms ready
-  progress?: number; // 0-1 for stay still
+  onReady: () => void;
+  onCancel: () => void;
+  progress?: number;
   sequencePositions?: { x: number; y: number }[];
   currentStep?: number;
   isInputPhase?: boolean;
 }
 
-export function MiniGameUI({ game, onReady, progress, sequencePositions, currentStep, isInputPhase }: MiniGameUIProps) {
+export function MiniGameUI({ game, onReady, onCancel, progress, sequencePositions, currentStep, isInputPhase }: MiniGameUIProps) {
   const [visible, setVisible] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
@@ -399,7 +400,7 @@ export function MiniGameUI({ game, onReady, progress, sequencePositions, current
         </div>
       )}
 
-      {/* Ready button (only if not confirmed yet) */}
+      {/* Ready / Cancel buttons */}
       {!confirmed && game.type !== 'find_me' && (
         <div style={{
           position: 'fixed',
@@ -410,17 +411,30 @@ export function MiniGameUI({ game, onReady, progress, sequencePositions, current
           opacity: visible ? 1 : 0,
           transition: 'opacity 0.4s',
           pointerEvents: 'auto',
+          display: 'flex',
+          gap: '20px',
         }}>
           <button
             onClick={confirm}
             style={{
               background: 'none', border: 'none', cursor: 'pointer',
-              color: 'rgba(180,150,255,0.5)', fontSize: '12px',
+              color: 'rgba(180,150,255,0.6)', fontSize: '12px',
               letterSpacing: '0.1em', padding: '8px 16px',
               fontFamily: 'inherit',
             }}
           >
             listo
+          </button>
+          <button
+            onClick={onCancel}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              color: 'rgba(120,100,180,0.35)', fontSize: '12px',
+              letterSpacing: '0.1em', padding: '8px 16px',
+              fontFamily: 'inherit',
+            }}
+          >
+            ahora no
           </button>
         </div>
       )}
